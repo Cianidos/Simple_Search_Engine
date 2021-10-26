@@ -10,35 +10,28 @@ fun filterByWord(data: Persons, word: String) =
 fun containsWord(person: Person, word: String) =
     person.map { it.lowercase() }.any { s -> s.contains(word.lowercase()) }
 
-fun readPersons(n: Int) =
+fun readPersons(n: Int): List<List<String>> =
     (1..n).map { readLine().orEmpty().split(" ") }
 
-fun readPersonsCount() =
+fun readPersonsCount(): Int =
     readLine().orEmpty().toInt()
 
-fun readRequestsCount() =
+fun readRequestsCount(): Int =
     readLine().orEmpty().toInt()
 
-fun readRequest(): String {
-    println("Enter data to search people")
-    return readLine().orEmpty()
-}
+fun readRequest(): String =
+    readLine().orEmpty()
 
-fun println(person: Person) {
-    println(person.joinToString(" "))
-}
+fun format(person: Person): String =
+    person.joinToString(" ")
 
-fun processFiltered(filteredData: Persons) {
-    when {
-        filteredData.isEmpty() -> {
-            println("No matching people found.")
-        }
-        else -> {
-            println()
-            println("People found:")
-            filteredData.forEach(::println)
-        }
-    }
+fun processFiltered(filteredData: Persons) = when {
+    filteredData.isEmpty() -> "No matching people found."
+    else -> filteredData.joinToString(
+        "\n",
+        prefix = "\nPeople found:\n",
+        transform = ::format
+    )
 }
 
 fun main() {
@@ -50,7 +43,8 @@ fun main() {
     println()
 
     repeat(n) {
-        processFiltered(filterByWord(data, readRequest()))
+        println("Enter data to search people")
+        println(processFiltered(filterByWord(data, readRequest())))
         println()
     }
 }
