@@ -23,28 +23,22 @@ fun processFiltered(filteredData: Persons) = when {
     )
 }
 
-data class IO<T> private constructor(private val effect: () -> T) {
-    companion object {
-        operator fun <T> invoke(effect: IOContext.() -> T) =
-            IO { IOContext().effect() }
+data class IO<T>(private val effect: IOContext.() -> T) {
 
-        operator fun <T> invoke(io: IO<T>) = io
-    }
+    private operator fun invoke() = IOContext().effect()
 
-    private operator fun invoke() = effect()
-
-    infix fun <U> map(f: IOContext.(T) -> U) = IO { IOContext().f(this()) }
-    infix fun <U> and(io: IO<U>) = IO { this(); io() }
-    fun <U> mapT(f: T.(IOContext) -> U) = IO { this().f(IOContext()) }
+    infix fun <U> map(f: IOContext.(T) -> U) = IO { IOContext().f(this@IO()) }
+    infix fun <U> and(io: IO<U>) = IO { this@IO(); io() }
+    fun <U> mapT(f: T.(IOContext) -> U) = IO { this@IO().f(IOContext()) }
 
     infix fun <U> flatMap(f: IOContext.(T) -> IO<U>) =
-        IO { IOContext().f(this())() }
+        IO { IOContext().f(this@IO())() }
 
     class IOContext {
         fun <U> use(io: IO<U>): U = io()
     }
 
-    fun unsafeRun() = effect()
+    fun unsafeRun() = this()
 }
 
 
