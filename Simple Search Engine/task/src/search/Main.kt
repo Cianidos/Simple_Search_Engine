@@ -10,14 +10,6 @@ fun filterByWord(data: Persons, word: String) =
 fun containsWord(person: Person, word: String) =
     person.map { it.lowercase() }.any { s -> s.contains(word.lowercase()) }
 
-fun readPersons(n: Int) =
-    IO { (1..n).map { readLine().orEmpty().split(" ") } }
-
-fun readPersonsCount() = IO { readLine().orEmpty().toInt() }
-
-fun readRequestsCount() = IO { readLine().orEmpty().toInt() }
-
-fun readRequest() = IO { readLine().orEmpty() }
 
 fun format(person: Person): String =
     person.joinToString(" ")
@@ -31,20 +23,27 @@ fun processFiltered(filteredData: Persons) = when {
     )
 }
 
-data class IO<T>(val effect: () -> T) : () -> T by effect {
-    fun <U> andAfter(f: (T) -> U) {
-        return
-    }
-}
+data class IO<T>(val effect: () -> T) : () -> T by effect
 
-val enterNumberOfPeople = IO { println("Enter the number of people:") }
-val enterNumberOfQueries = IO { println("\nEnter the number of queries:") }
-val endLine = IO { println() }
-val enterDataToSearchPeople = IO { println("Enter data to search people") }
+fun stdin() = IO { readLine().orEmpty() }
+
+fun readPersons(n: Int): IO<List<List<String>>> =
+    IO { (1..n).map { stdin()().split(" ") } }
+fun readPersonsCount(): IO<Int> = IO { stdin()().toInt() }
+fun readRequestsCount(): IO<Int> = IO { stdin()().toInt() }
+fun readRequest() = stdin()
+
+
+fun stdout(msg: String = "") = IO { println(msg) }
+
+val enterNumberOfPeople = stdout("Enter the number of people:")
+val enterNumberOfQueries = stdout("\nEnter the number of queries:")
+val endLine = stdout()
+val enterDataToSearchPeople = stdout("Enter data to search people")
 val personsCount = readPersonsCount()
 val dataReading = readPersons(personsCount())
 val printProcessedData = { data: Persons, request: String ->
-    IO { println(processFiltered(filterByWord(data, request))) }
+    stdout(processFiltered(filterByWord(data, request)))
 }
 
 // TODO convert sequence of calls to function composition
