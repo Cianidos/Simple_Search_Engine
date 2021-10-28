@@ -10,17 +10,14 @@ fun filterByWord(data: Persons, word: String) =
 fun containsWord(person: Person, word: String) =
     person.map { it.lowercase() }.any { s -> s.contains(word.lowercase()) }
 
-fun readPersons(n: Int): List<List<String>> =
-    (1..n).map { readLine().orEmpty().split(" ") }
+fun readPersons(n: Int) =
+    IO { (1..n).map { readLine().orEmpty().split(" ") } }
 
-fun readPersonsCount(): Int =
-    readLine().orEmpty().toInt()
+fun readPersonsCount() = IO { readLine().orEmpty().toInt() }
 
-fun readRequestsCount(): Int =
-    readLine().orEmpty().toInt()
+fun readRequestsCount() = IO { readLine().orEmpty().toInt() }
 
-fun readRequest(): String =
-    readLine().orEmpty()
+fun readRequest() = IO { readLine().orEmpty() }
 
 fun format(person: Person): String =
     person.joinToString(" ")
@@ -34,25 +31,34 @@ fun processFiltered(filteredData: Persons) = when {
     )
 }
 
-fun main() {
-    println("Enter the number of people:")
-    val data = readPersons(readPersonsCount())
-    println()
-    println("Enter the number of queries:")
-    val n = readRequestsCount()
-    println()
-
-    repeat(n) {
-        println("Enter data to search people")
-        println(processFiltered(filterByWord(data, readRequest())))
-        println()
+data class IO<T>(val effect: () -> T) : () -> T by effect {
+    fun <U> andAfter(f: (T) -> U) {
+        return
     }
 }
-/*
-Dwight Joseph djo@gmail.com
-Rene Webb webb@gmail.com
-Katie Jacobs
-Erick Harrington harrington@gmail.com
-Myrtle Medina
-Erick Burgess
- */
+
+val enterNumberOfPeople = IO { println("Enter the number of people:") }
+val enterNumberOfQueries = IO { println("\nEnter the number of queries:") }
+val endLine = IO { println() }
+val enterDataToSearchPeople = IO { println("Enter data to search people") }
+val personsCount = readPersonsCount()
+val dataReading = readPersons(personsCount())
+val printProcessedData = { data: Persons, request: String ->
+    IO { println(processFiltered(filterByWord(data, request))) }
+}
+
+// TODO convert sequence of calls to function composition
+fun main() {
+    enterNumberOfPeople()
+    val data: List<List<String>> = dataReading()
+    enterNumberOfQueries()
+    val n = readRequestsCount()()
+    endLine()
+
+    repeat(n) {
+        enterDataToSearchPeople()
+        val request = readRequest()()
+        printProcessedData(data, request)()
+        endLine()
+    }
+}
