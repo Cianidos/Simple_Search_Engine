@@ -27,11 +27,30 @@ typealias Person = List<String>
 data class Persons(val persons: List<Person>) : List<Person> by persons {
     val index = persons.withIndex().flatMap { row ->
         row.value.map { it to row.index }
-    }.groupBy({ it.first }, { it.second })
+    }.groupBy({ it.first.lowercase() }, { it.second })
 }
 
-fun filterByWord(data: Persons, word: String): Persons =
-    Persons(data.index[word]?.map { id -> data[id] } ?: emptyList())
+fun findAny(data: Persons, words: List<String>): Persons =
+    Persons(words.flatMap { word ->
+        data.index[word] ?: emptyList()
+    }.toSet().map { id -> data[id] })
+
+fun findAll(data: Persons, words: List<String>): Persons =
+    Persons(words.flatMap { word ->
+        data.index[word] ?: emptyList()
+    }.groupBy { it }.flatMap {
+        if (it.value.size != words.size) emptyList()
+        else listOf(it.key)
+    }.map { id ->
+        data[id]
+    })
+
+fun findNone(data: Persons, words: List<String>): Persons {
+    val badIds = words.flatMap { word ->
+        data.index[word] ?: emptyList()
+    }.toSet()
+    return Persons(data.filterIndexed { idx, _ -> !badIds.contains(idx) })
+}
 
 fun format(person: Person): String =
     person.joinToString(" ")
@@ -39,15 +58,23 @@ fun format(person: Person): String =
 fun personsToString(p: Persons) =
     p.joinToString("\n", transform = ::format)
 
+fun printFiltered(filteredData: Persons) = stdout(
+    when {
+        filteredData.isEmpty() -> "No matching people found."
+        else -> personsToString(filteredData)
+    }
+)
 
-fun processFiltered(filteredData: Persons) = when {
-    filteredData.isEmpty() -> "No matching people found."
-    else -> personsToString(filteredData)
-}
-
-fun printProcessedData(data: Persons) = readRequest flatMap { request ->
-    stdout(processFiltered(filterByWord(data, request)))
-}
+fun printProcessedData(data: Persons, searchStrategy: SearchStrategy) =
+    readRequest map { it.lowercase().split(" ") } flatMap { request ->
+        printFiltered(
+            when (searchStrategy) {
+                SearchStrategy.All -> ::findAll
+                SearchStrategy.Any -> ::findAny
+                SearchStrategy.None -> ::findNone
+            }(data, request)
+        )
+    }
 
 val stdin = IO { readLine().orEmpty() }
 val readInt = stdin.mapT { toInt() }
@@ -56,6 +83,8 @@ fun readPersons(fileName: String): IO<Persons> =
     IO { Persons(File(fileName).readLines().map { it.split(" ") }) }
 
 val readRequest = stdout("Enter data to search people") * stdin
+val readStrategy = stdout("Select a matching strategy: ALL, ANY, NONE") *
+        stdin map { SearchStrategy(it) }
 
 fun stdout(msg: String = "") = IO { println(msg) }
 val endL = stdout()
@@ -72,6 +101,21 @@ val printIncorrectOption = stdout("Incorrect option! Try again")
 val printPeopleHeader = stdout("=== List of people ===")
 
 val printExit = stdout("Bye!")
+
+sealed class SearchStrategy {
+    companion object {
+        operator fun invoke(str: String) = when (str) {
+            "ANY" -> Any
+            "ALL" -> All
+            "NONE" -> None
+            else -> throw IllegalArgumentException("Impossible")
+        }
+    }
+
+    object Any : SearchStrategy()
+    object All : SearchStrategy()
+    object None : SearchStrategy()
+}
 
 sealed class MenuOptions {
     companion object {
@@ -95,8 +139,8 @@ fun menuProcess(data: Persons): IO<Unit> =
             MenuOptions.Error -> printIncorrectOption * menuProcess(data)
             MenuOptions.Exit -> printExit
 
-            MenuOptions.FindPerson
-            -> printProcessedData(data) * menuProcess(data)
+            MenuOptions.FindPerson -> (readStrategy flatMap
+                    { printProcessedData(data, it) }) * menuProcess(data)
 
             MenuOptions.PrintAll -> printPeopleHeader *
                     stdout(personsToString(data)) * menuProcess(data)
