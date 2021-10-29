@@ -23,13 +23,15 @@ data class IO<T>(private val effect: IOContext.() -> T) {
 }
 
 typealias Person = List<String>
-typealias Persons = List<Person>
 
-fun filterByWord(data: Persons, word: String) =
-    data.filter { containsWord(it, word) }
+data class Persons(val persons: List<Person>) : List<Person> by persons {
+    val index = persons.withIndex().flatMap { row ->
+        row.value.map { it to row.index }
+    }.groupBy({ it.first }, { it.second })
+}
 
-fun containsWord(person: Person, word: String) =
-    person.map { it.lowercase() }.any { s -> s.contains(word.lowercase()) }
+fun filterByWord(data: Persons, word: String): Persons =
+    Persons(data.index[word]?.map { id -> data[id] } ?: emptyList())
 
 fun format(person: Person): String =
     person.joinToString(" ")
@@ -50,8 +52,8 @@ fun printProcessedData(data: Persons) = readRequest flatMap { request ->
 val stdin = IO { readLine().orEmpty() }
 val readInt = stdin.mapT { toInt() }
 
-fun readPersons(fileName: String): IO<List<List<String>>> =
-    IO { File(fileName).readLines().map { it.split(" ") } }
+fun readPersons(fileName: String): IO<Persons> =
+    IO { Persons(File(fileName).readLines().map { it.split(" ") }) }
 
 val readRequest = stdout("Enter data to search people") * stdin
 
@@ -106,9 +108,3 @@ fun main(args: Array<String>) {
         menuProcess(data)
     }).unsafeRun()
 }
-
-/*
-2
-a b c
-b t g
- */
