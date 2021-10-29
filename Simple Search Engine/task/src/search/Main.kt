@@ -1,5 +1,7 @@
 package search
 
+import java.io.File
+
 data class IO<T>(private val effect: IOContext.() -> T) {
 
     private operator fun invoke() = IOContext().effect()
@@ -48,16 +50,13 @@ fun printProcessedData(data: Persons) = readRequest flatMap { request ->
 val stdin = IO { readLine().orEmpty() }
 val readInt = stdin.mapT { toInt() }
 
-fun readPersons(n: Int): IO<List<List<String>>> =
-    IO { (1..n).map { +stdin.mapT { split(" ") } } }
+fun readPersons(fileName: String): IO<List<List<String>>> =
+    IO { File(fileName).readLines().map { it.split(" ") } }
 
-val readPersonsCount = stdout("Enter the number of people:") * readInt
 val readRequest = stdout("Enter data to search people") * stdin
 
 fun stdout(msg: String = "") = IO { println(msg) }
 val endL = stdout()
-
-val dataReading = (readPersonsCount flatMap { readPersons(it) })
 
 val printMenu = stdout(
     """
@@ -102,8 +101,8 @@ fun menuProcess(data: Persons): IO<Unit> =
         }
     }
 
-fun main() {
-    (dataReading flatMap { data ->
+fun main(args: Array<String>) {
+    (readPersons(args[1]) flatMap { data ->
         menuProcess(data)
     }).unsafeRun()
 }
