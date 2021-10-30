@@ -48,7 +48,9 @@ fun findNone(data: Persons, words: List<String>): Persons =
     }.map { data[it] })
 
 
-enum class SearchStrategy { Any, All, None }
+enum class SearchStrategy(val find: (Persons, List<String>) -> Persons) {
+    Any(::findAny), All(::findAll), None(::findNone)
+}
 
 fun parseSearchStrategy(str: String) = when (str) {
     "ANY" -> SearchStrategy.Any
@@ -57,15 +59,12 @@ fun parseSearchStrategy(str: String) = when (str) {
     else -> throw IllegalArgumentException("Impossible")
 }
 
-enum class MenuOptions { Exit, FindPerson, PrintAll, Error, }
-
 fun parseMenuOption(code: Int) = when (code) {
     0 -> MenuOptions.Exit
     1 -> MenuOptions.FindPerson
     2 -> MenuOptions.PrintAll
     else -> MenuOptions.Error
 }
-
 
 val stdin = IO { readLine().orEmpty() }
 val readInt = stdin.mapT { toInt() }
@@ -89,34 +88,27 @@ val printMenu = stdout(
 val printIncorrectOption = stdout("Incorrect option! Try again")
 val printPeopleHeader = stdout("=== List of people ===")
 val printExit = stdout("Bye!")
-fun printFiltered(filteredData: Persons) = stdout(
-    when {
-        filteredData.isEmpty() -> "No matching people found."
-        else -> "$filteredData"
-    }
-)
+fun printFiltered(filteredData: Persons) =
+    stdout(if (filteredData.isEmpty()) "No matching people found." else "$filteredData")
 
 fun printProcessedData(data: Persons, searchStrategy: SearchStrategy) =
     readRequest map { it.lowercase().split(" ") } flatMap { request ->
-        printFiltered(
-            when (searchStrategy) {
-                SearchStrategy.All -> ::findAll
-                SearchStrategy.Any -> ::findAny
-                SearchStrategy.None -> ::findNone
-            }(data, request)
-        )
+        printFiltered(searchStrategy.find(data, request))
     }
+
+enum class MenuOptions(val io: (Persons) -> IO<Unit>) {
+    Exit({ printExit }),
+    FindPerson({ data ->
+        (readStrategy flatMap { printProcessedData(data, it) }) *
+                menuProcess(data)
+    }),
+    PrintAll({ printPeopleHeader * stdout("$it") * menuProcess(it) }),
+    Error({ printIncorrectOption * menuProcess(it) }),
+}
 
 fun menuProcess(data: Persons): IO<Unit> =
     endL * printMenu * readInt flatMap { code ->
-        endL * when (parseMenuOption(code)) {
-            MenuOptions.Error -> printIncorrectOption * menuProcess(data)
-            MenuOptions.Exit -> printExit
-            MenuOptions.FindPerson -> (readStrategy flatMap
-                    { printProcessedData(data, it) }) * menuProcess(data)
-            MenuOptions.PrintAll -> printPeopleHeader *
-                    stdout("$data") * menuProcess(data)
-        }
+        endL * parseMenuOption(code).io(data)
     }
 
 fun main(args: Array<String>) {
