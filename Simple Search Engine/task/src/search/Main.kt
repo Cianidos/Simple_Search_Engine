@@ -89,17 +89,20 @@ val printIncorrectOption = stdout("Incorrect option! Try again")
 val printPeopleHeader = stdout("=== List of people ===")
 val printExit = stdout("Bye!")
 fun printFiltered(filteredData: Persons) =
-    stdout(if (filteredData.isEmpty()) "No matching people found." else "$filteredData")
+    stdout(
+        if (filteredData.isEmpty()) "No matching people found." else
+            "${filteredData.size} persons found:\n$filteredData"
+    )
 
 fun printProcessedData(data: Persons, searchStrategy: SearchStrategy) =
     readRequest map { it.lowercase().split(" ") } flatMap { request ->
-        printFiltered(searchStrategy.find(data, request))
+        endL * printFiltered(searchStrategy.find(data, request))
     }
 
 enum class MenuOptions(val io: (Persons) -> IO<Unit>) {
     Exit({ printExit }),
     FindPerson({ data ->
-        (readStrategy flatMap { printProcessedData(data, it) }) *
+        (readStrategy flatMap { endL * printProcessedData(data, it) }) *
                 menuProcess(data)
     }),
     PrintAll({ printPeopleHeader * stdout("$it") * menuProcess(it) }),
